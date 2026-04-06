@@ -1,0 +1,159 @@
+AMALY (Amalan Harian) - Narasi Presentasi Proyek
+=================================================
+
+Ringkasan
+--------
+AMALY adalah aplikasi desktop berbasis Python dan PyQt6 untuk mencatat, memantau,
+dan memvisualisasikan aktivitas ibadah harian. Aplikasi ini memadukan fitur
+login, pencatatan amalan, jadwal sholat, pembacaan Al-Qur'an, sedekah tracker,
+serta pengaturan personal seperti lokasi dan ukuran teks Arab. Seluruh data
+tersimpan secara lokal menggunakan SQLite sehingga aplikasi dapat berjalan
+offline dan responsif.
+
+Tujuan dan Manfaat
+------------------
+1) Mendorong konsistensi ibadah harian lewat pencatatan terstruktur.
+2) Memudahkan pengguna memantau jadwal sholat sesuai lokasi.
+3) Menyediakan pengalaman membaca Al-Qur'an dengan fitur bookmark dan target.
+4) Membantu pelacakan sedekah bulanan secara rapi dan terukur.
+5) Menjadi aplikasi desktop yang mudah dipasang tanpa server tambahan.
+
+Teknologi dan Dependensi
+------------------------
+- Python 3.8+
+- PyQt6 (GUI framework)
+- SQLite (database lokal)
+- requests (HTTP client)
+- API equran.id (data jadwal sholat dan surat Al-Qur'an)
+
+Arsitektur dan Struktur Direktori
+---------------------------------
+- main.py
+  Entry point aplikasi. Menginisialisasi database, window utama, dan navigasi
+  antar halaman menggunakan QStackedWidget.
+
+- database.py
+  Lapisan akses data (DAO). Berisi pembuatan tabel, operasi CRUD, dan helper
+  terkait login, amalan, sholat checklist, bookmark Quran, target Quran,
+  sedekah, dan setting pengguna.
+
+- ui/
+  Kumpulan halaman antarmuka PyQt6.
+  - ui_login.py: Halaman login (glassmorphism) dan autentikasi.
+  - ui_register.py: Registrasi pengguna dan pemilihan lokasi (provinsi/kabkota).
+  - ui_dashboard.py: Dashboard utama dengan banner, ringkasan aktivitas, kartu
+    info, dan navigasi.
+  - ui_sholat.py: Jadwal sholat lengkap dan checklist fardhu.
+  - ui_quran.py: List surat, detail ayat, bookmark, target baca.
+  - ui_sedekahTracker.py: Input sedekah, target bulanan, dan riwayat.
+  - ui_settings.py: Pengaturan nama, password, ukuran teks Arab, dan lokasi.
+
+- images/
+  Berisi aset visual aplikasi (background, logo, dan gambar pendukung).
+
+- testing/
+  Skrip debug untuk inspeksi query database dan verifikasi data.
+
+- utils.py
+  Fungsi utilitas untuk memuat aset gambar dan helper path.
+
+Alur Aplikasi
+-------------
+1) Aplikasi dijalankan dari main.py.
+2) MainWindow membuat koneksi database, lalu menyiapkan halaman UI.
+3) User login/registrasi dan data user disimpan di database.
+4) Setelah login, user diarahkan ke dashboard dan dapat navigasi ke modul lain.
+5) Data dari API equran.id dipanggil sesuai kebutuhan (jadwal sholat/surat).
+6) Data input user disimpan di SQLite dan ditampilkan kembali pada UI.
+
+Fitur Utama Secara Teknis
+-------------------------
+1) Login & Registrasi
+   - Hash password menggunakan SHA-256 di database.py.
+   - Username otomatis dari nama lengkap (lowercase + underscore).
+
+2) Dashboard
+   - Menggunakan widget custom dan QPainter untuk ikon vektor.
+   - Banner dengan background image dan gradient overlay.
+
+3) Jadwal Sholat
+   - Menarik data dari API equran.id berdasarkan lokasi user.
+   - Checklist sholat tersimpan di tabel sholat_checklist.
+
+4) Al-Qur'an
+   - Menampilkan daftar surat dari API.
+   - Bookmark dan target baca tersimpan di tabel quran_bookmark dan quran_target.
+   - Ukuran teks Arab disinkronkan dari setting pengguna.
+
+5) Sedekah Tracker
+   - Input nominal, kategori, keterangan, dan tanggal.
+   - Target sedekah bulanan disimpan di tabel sedekah_target.
+   - Riwayat dan progres ditampilkan lewat chart/progress bar.
+
+6) Settings
+   - Mengubah nama, password, lokasi, dan ukuran teks Arab.
+   - Setting disimpan di tabel user_settings.
+
+Database (SQLite) - Ringkasan Tabel
+-----------------------------------
+- users
+  Data user, password hash, lokasi, provinsi, kabkota.
+
+- amalan
+  Catatan amalan harian per user.
+
+- reminders
+  Data pengingat ibadah.
+
+- sholat_checklist
+  Checklist sholat fardhu per tanggal.
+
+- quran_bookmark
+  Data surat/ayat terakhir dibaca.
+
+- quran_target
+  Target baca Al-Qur'an.
+
+- quran_liked
+  Ayat yang disukai.
+
+- sedekah
+  Catatan sedekah user.
+
+- sedekah_target
+  Target sedekah bulanan.
+
+- user_settings
+  Pengaturan personal (contoh: arab_font_size).
+
+Keunggulan Teknis
+-----------------
+- Full offline support untuk data lokal (SQLite).
+- UI modern dengan PyQt6, custom painting, dan layout responsif.
+- Modular: pemisahan halaman UI dan logika data.
+- Reusable assets melalui utils.py dan folder images/.
+
+Cara Menjalankan
+----------------
+1) Pastikan dependency terinstal:
+   pip install PyQt6 requests
+
+2) Jalankan aplikasi:
+   python main.py
+
+Struktur Folder :
+
+
+Catatan Implementasi
+--------------------
+- Pengambilan data API berjalan di background thread agar UI tetap responsif.
+- Komponen dengan QStackedWidget memudahkan transisi antar halaman.
+- Gambar dan aset dipusatkan di folder images/ agar path konsisten.
+
+Penutup
+-------
+AMALY merupakan aplikasi desktop edukatif yang menggabungkan teknologi Python
+GUI, database lokal, dan API eksternal untuk menghadirkan pengalaman terintegrasi
+bagi pengguna dalam mencatat dan memonitor amalan harian. Struktur modular dan
+pendekatan arsitektur berbasis komponen menjadikan aplikasi ini mudah dirawat
+serta siap dikembangkan lebih lanjut.

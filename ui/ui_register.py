@@ -13,7 +13,9 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, pyqtSignal, QMetaObject, Q_ARG
 from PyQt6.QtGui import QPixmap, QColor, QPainter, QLinearGradient
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+UI_DIR = os.path.dirname(os.path.abspath(__file__))
+APP_DIR = os.path.abspath(os.path.join(UI_DIR, ".."))
+ASSET_DIR = os.path.join(APP_DIR, "images")
 
 
 class RegisterPage(QWidget):
@@ -34,7 +36,7 @@ class RegisterPage(QWidget):
 
     def _load_background(self):
         for name in ("BG-Auth.jpg", "BG-Auth.png", "Rectangle 2.png"):
-            bg_path = os.path.join(BASE_DIR, name)
+            bg_path = os.path.join(ASSET_DIR, name)
             if os.path.exists(bg_path):
                 self.bg_pixmap = QPixmap(bg_path)
                 return
@@ -226,7 +228,7 @@ class RegisterPage(QWidget):
         logo_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
         logo_layout.setSpacing(6)
         logo_icon = QLabel()
-        logo_pm = QPixmap(os.path.join(BASE_DIR, "logo.png"))
+        logo_pm = QPixmap(os.path.join(ASSET_DIR, "logo.png"))
         if not logo_pm.isNull():
             logo_icon.setPixmap(logo_pm.scaled(36, 36, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
         else:

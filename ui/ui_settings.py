@@ -15,9 +15,11 @@ from PyQt6.QtWidgets import (
     QVBoxLayout, QWidget,
 )
 
-from ui_dashboard import IconWidget
+from ui.ui_dashboard import IconWidget
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+UI_DIR = os.path.dirname(os.path.abspath(__file__))
+APP_DIR = os.path.abspath(os.path.join(UI_DIR, ".."))
+ASSET_DIR = os.path.join(APP_DIR, "images")
 API_SHALAT = "https://equran.id/api/v2/shalat"
 
 
@@ -82,7 +84,7 @@ class SettingsPage(QWidget):
         logo_row = QHBoxLayout()
         logo_row.setSpacing(10)
         logo_row.setAlignment(Qt.AlignmentFlag.AlignLeft)
-        logo_pixmap = QPixmap(os.path.join(BASE_DIR, "logo.png"))
+        logo_pixmap = QPixmap(os.path.join(ASSET_DIR, "logo.png"))
         logo_img = QLabel()
         if logo_pixmap and not logo_pixmap.isNull():
             logo_img.setPixmap(logo_pixmap.scaled(44, 44,

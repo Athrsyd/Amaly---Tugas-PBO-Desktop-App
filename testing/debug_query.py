@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 import sqlite3
+import os
 
-conn = sqlite3.connect('amalan_harian.db')
+BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+db_path = os.path.join(BASE_DIR, "amalan_harian.db")
+conn = sqlite3.connect(db_path)
 cursor = conn.cursor()
 
 # Test query dengan parameter yang sama seperti di aplikasi

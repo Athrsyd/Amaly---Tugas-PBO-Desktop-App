@@ -29,18 +29,18 @@ from PyQt6.QtCore import Qt, QSize
 from PyQt6.QtGui import QIcon, QFont
 
 from database import Database
-from ui_login import LoginPage
-from ui_register import RegisterPage
-from ui_dashboard import DashboardPage
-from ui_sholat import SholatPage
-from ui_quran import QuranPage
-from ui_sedekahTracker import SedekahTrackerPage
-from ui_settings import SettingsPage
+from ui.ui_login import LoginPage
+from ui.ui_register import RegisterPage
+from ui.ui_dashboard import DashboardPage
+from ui.ui_sholat import SholatPage
+from ui.ui_quran import QuranPage
+from ui.ui_sedekahTracker import SedekahTrackerPage
+from ui.ui_settings import SettingsPage
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # ── DEV: set True to bypass login and go straight to dashboard ──
-SKIP_LOGIN = False
+SKIP_LOGIN = True
 # ────────────────────────────────────────────────────────────────
 
 

@@ -2,7 +2,8 @@
 import sqlite3
 import os
 
-db_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "amalan_harian.db")
+BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+db_path = os.path.join(BASE_DIR, "amalan_harian.db")
 print(f"Database path: {db_path}")
 print(f"File exists: {os.path.exists(db_path)}")
 print(f"File size: {os.path.getsize(db_path)} bytes")

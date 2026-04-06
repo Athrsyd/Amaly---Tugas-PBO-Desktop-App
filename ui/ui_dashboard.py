@@ -21,7 +21,9 @@ from PyQt6.QtWidgets import (
 )
 
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+UI_DIR = os.path.dirname(os.path.abspath(__file__))
+APP_DIR = os.path.abspath(os.path.join(UI_DIR, ".."))
+ASSET_DIR = os.path.join(APP_DIR, "images")
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -330,7 +332,7 @@ class BannerWidget(QFrame):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.bg_pixmap = None
-        fp = os.path.join(BASE_DIR, "Background di dashboard.jpg")
+        fp = os.path.join(ASSET_DIR, "Background di dashboard.jpg")
         if os.path.exists(fp):
             self.bg_pixmap = QPixmap(fp)
 
@@ -370,7 +372,7 @@ class ImageCardWidget(QFrame):
     def __init__(self, image_file, parent=None):
         super().__init__(parent)
         self.bg_pixmap = None
-        fp = os.path.join(BASE_DIR, image_file)
+        fp = os.path.join(ASSET_DIR, image_file)
         if os.path.exists(fp):
             self.bg_pixmap = QPixmap(fp)
 
@@ -422,7 +424,7 @@ class DashboardPage(QWidget):
             self.user_kabkota = user_data.get("kabkota", "")
 
         # Load logo
-        self.logo_pixmap = QPixmap(os.path.join(BASE_DIR, "logo.png"))
+        self.logo_pixmap = QPixmap(os.path.join(ASSET_DIR, "logo.png"))
 
         self.setup_ui()
         self._start_clock()

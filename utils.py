@@ -8,7 +8,8 @@ import base64
 from PyQt6.QtGui import QPixmap
 from PyQt6.QtCore import Qt
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+APP_DIR = os.path.dirname(os.path.abspath(__file__))
+ASSET_DIR = os.path.join(APP_DIR, "images")
 
 
 def load_banner_image(width=380, height=160):
@@ -17,7 +18,7 @@ def load_banner_image(width=380, height=160):
     SVG berisi embedded PNG base64, jadi kita extract langsung.
     Returns QPixmap atau None jika gagal.
     """
-    svg_path = os.path.join(BASE_DIR, "image 4 (2).svg")
+    svg_path = os.path.join(ASSET_DIR, "image 4 (2).svg")
 
     if not os.path.exists(svg_path):
         return None
@@ -52,7 +53,7 @@ def load_image(filename, width=None, height=None):
     Memuat gambar PNG dari direktori aplikasi.
     Returns QPixmap atau None jika gagal.
     """
-    img_path = os.path.join(BASE_DIR, filename)
+    img_path = os.path.join(ASSET_DIR, filename)
 
     if not os.path.exists(img_path):
         return None
@@ -77,4 +78,4 @@ def load_image(filename, width=None, height=None):
 
 def get_asset_path(filename):
     """Mendapatkan path lengkap untuk file asset"""
-    return os.path.join(BASE_DIR, filename)
+    return os.path.join(ASSET_DIR, filename)
