@@ -40,7 +40,7 @@ from ui.ui_settings import SettingsPage
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # ── DEV: set True to bypass login and go straight to dashboard ──
-SKIP_LOGIN = True
+SKIP_LOGIN = False
 # ────────────────────────────────────────────────────────────────
 
 
