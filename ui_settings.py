@@ -463,11 +463,13 @@ class SettingsPage(QWidget):
     @staticmethod
     def _combo_style():
         return ("QComboBox{border:1px solid #D0D5CC;border-radius:8px;padding:8px 12px;"
-                "font-size:12px;background:#FAFBF8;color:#333;}"
-                "QComboBox:focus{border-color:#2D6B4A;}"
-                "QComboBox::drop-down{border:none;width:24px;}"
-                "QComboBox QAbstractItemView{background:#FFF;border:1px solid #DDD;"
-                "selection-background-color:#EAF5E6;selection-color:#333;}")
+            "font-size:12px;background:#FAFBF8;color:#000;}"
+            "QComboBox:focus{border-color:#2D6B4A;}"
+            "QComboBox::drop-down{border:none;width:24px;}"
+            "QComboBox QAbstractItemView{background:#FFF;border:1px solid #DDD;"
+            "selection-background-color:#EAF5E6;selection-color:#000;}"
+            "QComboBox QAbstractItemView::item{color:#000;}"
+            "QComboBox QAbstractItemView::item:selected{color:#000;background:#EAF5E6;}")
 
     def _show_msg(self, label, text, success=True):
         color = "#2D6B4A" if success else "#E74C3C"

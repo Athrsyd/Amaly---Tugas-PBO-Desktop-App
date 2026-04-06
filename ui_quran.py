@@ -121,7 +121,7 @@ class QuranPage(QWidget):
             ("home", "Dashboard", False),
             ("mosque", "Jadwal Sholat", False),
             ("book", "Al-Qur'an", True),
-            ("chart", "Daily Tracker", False),
+            ("chart", "Sedekah Tracker", False),
         ]
         self._sb_btns = {}
         for ic, label, active in menu:
@@ -363,12 +363,12 @@ class QuranPage(QWidget):
         tgt_h.addWidget(QLabel("Ayat"))
         self.target_start_spin = QSpinBox()
         self.target_start_spin.setMinimum(1)
-        self.target_start_spin.setStyleSheet("QSpinBox{border:1px solid #CCC;border-radius:4px;padding:2px 6px;}")
+        self.target_start_spin.setStyleSheet("QSpinBox{border:1px solid #CCC;border-radius:4px;padding:2px 6px;color:#000;} QSpinBox QAbstractSpinBox { color: #000; }")
         tgt_h.addWidget(self.target_start_spin)
         tgt_h.addWidget(QLabel("s/d"))
         self.target_end_spin = QSpinBox()
         self.target_end_spin.setMinimum(1)
-        self.target_end_spin.setStyleSheet("QSpinBox{border:1px solid #CCC;border-radius:4px;padding:2px 6px;}")
+        self.target_end_spin.setStyleSheet("QSpinBox{border:1px solid #CCC;border-radius:4px;padding:2px 6px;color:#000;} QSpinBox QAbstractSpinBox { color: #000; }")
         tgt_h.addWidget(self.target_end_spin)
         tgt_save = QPushButton("Simpan Target")
         tgt_save.setCursor(Qt.CursorShape.PointingHandCursor)

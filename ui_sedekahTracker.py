@@ -275,7 +275,16 @@ class SedekahTrackerPage(QWidget):
         form.addWidget(self._form_label("Kategori"), 2, 0)
         self.kategori_combo = QComboBox()
         self.kategori_combo.addItems(KATEGORI_SEDEKAH)
-        self.kategori_combo.setStyleSheet(self._combo_style())
+        # Style agar text pada dropdown dan item hitam
+        self.kategori_combo.setStyleSheet(
+            "QComboBox{border:1px solid #D0D5CC;border-radius:8px;padding:8px 12px;"
+            "font-size:12px;background:#FAFBF8;color:#000;}"
+            "QComboBox:focus{border-color:#2D6B4A;}"
+            "QComboBox::drop-down{border:none;width:24px;}"
+            "QComboBox QAbstractItemView{background:#FFF;border:1px solid #DDD;"
+            "selection-background-color:#EAF5E6;selection-color:#000;color:#000;}"
+            "QComboBox QAbstractItemView::item{color:#000;}"
+        )
         form.addWidget(self.kategori_combo, 2, 1)
 
         # Keterangan
@@ -335,16 +344,25 @@ class SedekahTrackerPage(QWidget):
             self.target_bulan.addItem(
                 date(2000, i, 1).strftime("%B"), i)
         self.target_bulan.setCurrentIndex(date.today().month - 1)
-        self.target_bulan.setStyleSheet(self._combo_style())
+        # Ubah warna teks menjadi hitam
+        self.target_bulan.setStyleSheet(
+            "QComboBox{border:1px solid #D0D5CC;border-radius:8px;padding:8px 12px;"
+            "font-size:12px;background:#FAFBF8;color:#000;}"
+            "QComboBox:focus{border-color:#2D6B4A;}"
+            "QComboBox::drop-down{border:none;width:24px;}"
+            "QComboBox QAbstractItemView{background:#FFF;border:1px solid #DDD;"
+            "selection-background-color:#EAF5E6;selection-color:#000;}")
         self.target_bulan.setFixedWidth(120)
         tgt_row.addWidget(self.target_bulan)
 
         self.target_tahun = QSpinBox()
         self.target_tahun.setRange(2020, 2040)
         self.target_tahun.setValue(date.today().year)
+        # Ubah warna teks menjadi hitam
         self.target_tahun.setStyleSheet(
             "QSpinBox{border:1px solid #D0D5CC;border-radius:8px;padding:6px 10px;"
-            "font-size:12px;background:#FAFBF8;}")
+            "font-size:12px;background:#FAFBF8;color:#000;}"
+            "QSpinBox QAbstractSpinBox { color: #000; }")
         self.target_tahun.setFixedWidth(90)
         tgt_row.addWidget(self.target_tahun)
 
@@ -561,12 +579,14 @@ class SedekahTrackerPage(QWidget):
                 "QComboBox::drop-down{border:none;width:24px;}"
                 "QComboBox QAbstractItemView{background:#FFF;border:1px solid #DDD;"
                 "selection-background-color:#EAF5E6;selection-color:#333;}")
-
+    
     # ═══════════════════════════════════════════
     #  ACTIONS
     # ═══════════════════════════════════════════
+    
     def _save_sedekah(self):
         if not self.user_id:
+            QMessageBox.warning(self, "Peringatan", "User belum login, data tidak bisa disimpan.")
             return
         nom_text = self.nominal_input.text().strip()
         if not nom_text:
@@ -581,7 +601,13 @@ class SedekahTrackerPage(QWidget):
         kategori = self.kategori_combo.currentText()
         keterangan = self.keterangan_input.text().strip()
 
-        self.db.add_sedekah(self.user_id, tanggal, nominal, kategori, keterangan)
+        last_id = self.db.add_sedekah(self.user_id, tanggal, nominal, kategori, keterangan)
+        QMessageBox.information(self, "Sukses", "Data sedekah berhasil disimpan!")
+
+        # Set view bulan/tahun ke data yang baru saja disimpan
+        tgl_obj = datetime.strptime(tanggal, "%Y-%m-%d")
+        self._view_month = tgl_obj.month
+        self._view_year = tgl_obj.year
 
         # Reset form
         self.nominal_input.clear()

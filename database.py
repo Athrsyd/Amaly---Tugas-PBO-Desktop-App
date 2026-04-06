@@ -16,7 +16,8 @@ class Database:
         self.db_path = os.path.join(
             os.path.dirname(os.path.abspath(__file__)), db_name
         )
-        self.conn = sqlite3.connect(self.db_path)
+        # check_same_thread=False untuk mengatasi issue thread safety di PyQt6
+        self.conn = sqlite3.connect(self.db_path, check_same_thread=False)
         self.conn.row_factory = sqlite3.Row
         self.create_tables()
 
@@ -477,23 +478,26 @@ class Database:
     def get_sedekah_bulan(self, user_id, bulan, tahun):
         """Get all sedekah entries for a given month/year."""
         cursor = self.conn.cursor()
+        bulan_str = f"{bulan:02d}"
+        tahun_str = str(tahun)
         cursor.execute(
             """SELECT * FROM sedekah
                WHERE user_id = ?
-                 AND strftime('%%m', tanggal) = ?
-                 AND strftime('%%Y', tanggal) = ?
+                 AND strftime('%m', tanggal) = ?
+                 AND strftime('%Y', tanggal) = ?
                ORDER BY tanggal""",
-            (user_id, f"{bulan:02d}", str(tahun))
+            (user_id, bulan_str, tahun_str)
         )
-        return [dict(row) for row in cursor.fetchall()]
+        rows = cursor.fetchall()
+        return [dict(row) for row in rows]
 
     def get_total_sedekah_bulan(self, user_id, bulan, tahun):
         cursor = self.conn.cursor()
         cursor.execute(
             """SELECT COALESCE(SUM(nominal), 0) as total FROM sedekah
                WHERE user_id = ?
-                 AND strftime('%%m', tanggal) = ?
-                 AND strftime('%%Y', tanggal) = ?""",
+                 AND strftime('%m', tanggal) = ?
+                 AND strftime('%Y', tanggal) = ?""",
             (user_id, f"{bulan:02d}", str(tahun))
         )
         return cursor.fetchone()["total"]
@@ -504,8 +508,8 @@ class Database:
         cursor.execute(
             """SELECT DISTINCT tanggal FROM sedekah
                WHERE user_id = ?
-                 AND strftime('%%m', tanggal) = ?
-                 AND strftime('%%Y', tanggal) = ?""",
+                 AND strftime('%m', tanggal) = ?
+                 AND strftime('%Y', tanggal) = ?""",
             (user_id, f"{bulan:02d}", str(tahun))
         )
         return [row["tanggal"] for row in cursor.fetchall()]

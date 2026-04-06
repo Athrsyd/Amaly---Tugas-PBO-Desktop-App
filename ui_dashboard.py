@@ -9,6 +9,7 @@ import os
 import threading
 import requests
 from datetime import datetime, date
+from database import Database
 
 from PyQt6.QtCore import Qt, QRectF, QPointF, QTimer, pyqtSignal, QMetaObject, Q_ARG, pyqtSlot
 from PyQt6.QtGui import (
@@ -437,7 +438,11 @@ class DashboardPage(QWidget):
         self.loc_text.setText(f" {self.user_location} ∨")
         initials = "".join(w[0].upper() for w in self.user_name.split()[:2])
         self.avatar_label.setText(initials or "U")
+        # keep the raw user payload (used for activity metrics)
+        self._user_data = data
         self._load_prayer_times()
+        # gather activity metrics in background (DB + API calls)
+        threading.Thread(target=self._load_activity_in_background, daemon=True).start()
 
     # ─────────────── ROOT ───────────────
     def setup_ui(self):
@@ -720,6 +725,7 @@ class DashboardPage(QWidget):
         self._prayer_labels = {}
         prayers_def = [
             ("sunrise", "Subuh", "--:--", "subuh"),
+            ("sun", "Dhuha", "--:--", "dhuha"),
             ("sun", "Dzuhur", "--:--", "dzuhur"),
             ("cloud_sun", "Ashar", "--:--", "ashar"),
             ("sunset", "Maghrib", "--:--", "maghrib"),
@@ -772,6 +778,226 @@ class DashboardPage(QWidget):
 
         return f, tm
 
+    # ─────────────── DAILY ACTIVITY CALCULATIONS ───────────────
+    def _compute_sholat_consistency(self):
+        data = getattr(self, "_user_data", {}) or {}
+        checklist = data.get("sholat_checklist")  # expected: list of booleans or 0/1
+        if not checklist:
+            return 0
+        try:
+            vals = [1 if bool(x) else 0 for x in checklist]
+            return int(round(sum(vals) / len(vals) * 100))
+        except Exception:
+            return 0
+
+    def _compute_tadarus_consistency(self):
+        data = getattr(self, "_user_data", {}) or {}
+        t = data.get("tadarus")  # expected: {"current": int, "target": int}
+        if not t:
+            return 0
+        try:
+            cur = float(t.get("current", 0))
+            tgt = float(t.get("target", 0))
+            if tgt <= 0:
+                return 0
+            pct = int(round(min(100.0, (cur / tgt) * 100.0)))
+            return pct
+        except Exception:
+            return 0
+
+    def _compute_sedekah_consistency(self):
+        data = getattr(self, "_user_data", {}) or {}
+        s = data.get("sedekah")  # expected: {"total": num, "goal": num} or {"pct": int}
+        if not s:
+            return 0
+        try:
+            if isinstance(s, dict) and "pct" in s:
+                return int(round(min(100, float(s.get("pct", 0)))))
+            total = float(s.get("total", 0))
+            goal = float(s.get("goal", 0))
+            if goal <= 0:
+                return 0
+            return int(round(min(100.0, (total / goal) * 100.0)))
+        except Exception:
+            return 0
+
+    def _refresh_daily_activity(self):
+        try:
+            sh = self._compute_sholat_consistency()
+            ta = self._compute_tadarus_consistency()
+            se = self._compute_sedekah_consistency()
+            if hasattr(self, "sholat_pct_label") and hasattr(self, "sholat_progress_bar"):
+                self.sholat_pct_label.setText(f"{sh}%")
+                self.sholat_progress_bar.setValue(sh)
+            if hasattr(self, "tadarus_pct_label") and hasattr(self, "tadarus_progress_bar"):
+                self.tadarus_pct_label.setText(f"{ta}%")
+                self.tadarus_progress_bar.setValue(ta)
+            if hasattr(self, "sedekah_pct_label") and hasattr(self, "sedekah_progress_bar"):
+                self.sedekah_pct_label.setText(f"{se}%")
+                self.sedekah_progress_bar.setValue(se)
+        except Exception:
+            pass
+
+    # Background activity loader: queries DB and APIs and applies results
+    def _load_activity_in_background(self):
+        data = getattr(self, "_user_data", {}) or {}
+        uid = data.get("id")
+        result = {"sholat_pct": 0, "tadarus_pct": 0, "sedekah_pct": 0, "sedekah_week_total": 0.0, "tadarus_last_read": "Q.S --"}
+        try:
+            if uid:
+                # create a fresh Database connection for this thread to avoid
+                # SQLite "objects created in a thread" errors
+                try:
+                    local_db = Database(self.db.db_path) if hasattr(self, "db") and getattr(self.db, "db_path", None) else Database()
+                except Exception:
+                    local_db = Database()
+                # --- Sholat: compute percentage over last 7 days (5 prayers/day)
+                weekly = local_db.get_sholat_weekly(uid)
+                days = len(weekly) if weekly else 0
+                total_possible = days * 5 if days > 0 else 0
+                done = 0
+                for d in weekly:
+                    for k in ("subuh", "dzuhur", "ashar", "maghrib", "isya"):
+                        try:
+                            done += 1 if int(d.get(k, 0)) else 0
+                        except Exception:
+                            pass
+                result["sholat_pct"] = int(round((done / total_possible * 100))) if total_possible else 0
+
+                # --- Sedekah: this month total vs target
+                today = date.today()
+                total = float(local_db.get_total_sedekah_bulan(uid, today.month, today.year) or 0)
+                tgt_row = local_db.get_sedekah_target(uid, today.month, today.year)
+                if tgt_row:
+                    target_nom = float(tgt_row.get("target_nominal", 0))
+                    result["sedekah_pct"] = int(round(min(100.0, (total / target_nom * 100.0))) ) if target_nom > 0 else 0
+                else:
+                    result["sedekah_pct"] = 0
+
+                # --- Sedekah week total: try DB helper, fallback to sensible alternative
+                week_total = 0.0
+                try:
+                    if hasattr(local_db, 'get_total_sedekah_minggu'):
+                        week_total = float(local_db.get_total_sedekah_minggu(uid) or 0)
+                    elif hasattr(local_db, 'get_total_sedekah_range'):
+                        from datetime import timedelta
+                        end = date.today()
+                        start = end - timedelta(days=6)
+                        week_total = float(local_db.get_total_sedekah_range(uid, start.isoformat(), end.isoformat()) or 0)
+                    else:
+                        # fallback: approximate by using monthly total if weekly helper missing
+                        week_total = float(local_db.get_total_sedekah_bulan(uid, today.month, today.year) or 0)
+                except Exception:
+                    week_total = 0.0
+                result['sedekah_week_total'] = week_total
+
+                # --- Tadarus: calculate using quran target + bookmark + surat list from API
+                target = local_db.get_target(uid)
+                if target:
+                    bm = local_db.get_bookmark(uid)
+                    # fetch surat list
+                    try:
+                        r = requests.get("https://equran.id/api/v2/surat", timeout=10)
+                        surat_list = r.json().get("data", []) if r.status_code == 200 else []
+                    except Exception:
+                        surat_list = []
+
+                    def _cum_idx(slist, s_no, a_no):
+                        total = 0
+                        for s in slist:
+                            if s.get("nomor", 0) < s_no:
+                                total += s.get("jumlahAyat", 0)
+                            elif s.get("nomor", 0) == s_no:
+                                total += a_no
+                                break
+                        return total
+
+                    if surat_list:
+                        s_surat = target.get("start_surat")
+                        s_ayat = target.get("start_ayat")
+                        e_surat = target.get("end_surat")
+                        e_ayat = target.get("end_ayat")
+                        start_idx = _cum_idx(surat_list, s_surat, s_ayat)
+                        end_idx = _cum_idx(surat_list, e_surat, e_ayat)
+                        total_target = max(1, end_idx - start_idx + 1)
+                        read_ayat = 0
+                        if bm:
+                            bm_idx = _cum_idx(surat_list, bm.get("surat_nomor", 0), bm.get("ayat_nomor", 0))
+                            if bm_idx >= start_idx:
+                                read_ayat = min(bm_idx - start_idx + 1, total_target)
+                        pct = int(read_ayat / total_target * 100) if total_target else 0
+                        result["tadarus_pct"] = pct
+                        # also build a last-read string from bookmark
+                        try:
+                            if bm:
+                                s_no = int(bm.get('surat_nomor', 0))
+                                a_no = int(bm.get('ayat_nomor', 0))
+                                surat_name = None
+                                for s in surat_list:
+                                    try:
+                                        if int(s.get('nomor', 0)) == s_no:
+                                            surat_name = s.get('nama') or s.get('namaLatin') or s.get('nama_latin') or s.get('nama_latin')
+                                            break
+                                    except Exception:
+                                        continue
+                                if surat_name:
+                                    result['tadarus_last_read'] = f"Q.S {surat_name} {s_no}:{a_no}"
+                                else:
+                                    result['tadarus_last_read'] = f"Q.S {s_no}:{a_no}"
+                        except Exception:
+                            pass
+                # close local db
+                try:
+                    local_db.close()
+                except Exception:
+                    pass
+
+        except Exception:
+            pass
+
+        # Apply results on the main thread
+        try:
+            QMetaObject.invokeMethod(self, "_apply_activity_results", Qt.ConnectionType.QueuedConnection, Q_ARG(dict, result))
+        except Exception:
+            # fallback: directly call
+            self._apply_activity_results(result)
+
+    @pyqtSlot(dict)
+    def _apply_activity_results(self, res):
+        try:
+            sh = int(res.get("sholat_pct", 0))
+            ta = int(res.get("tadarus_pct", 0))
+            se = int(res.get("sedekah_pct", 0))
+            if hasattr(self, "sholat_pct_label") and hasattr(self, "sholat_progress_bar"):
+                self.sholat_pct_label.setText(f"{sh}%")
+                self.sholat_progress_bar.setValue(sh)
+            if hasattr(self, "tadarus_pct_label") and hasattr(self, "tadarus_progress_bar"):
+                self.tadarus_pct_label.setText(f"{ta}%")
+                self.tadarus_progress_bar.setValue(ta)
+            if hasattr(self, "sedekah_pct_label") and hasattr(self, "sedekah_progress_bar"):
+                self.sedekah_pct_label.setText(f"{se}%")
+                self.sedekah_progress_bar.setValue(se)
+            # Update sedekah week total display if available
+            try:
+                week_total = float(res.get('sedekah_week_total', 0) or 0)
+            except Exception:
+                week_total = 0.0
+            if hasattr(self, 'sedekah_value_label'):
+                def _format_rupiah(n):
+                    try:
+                        n_int = int(round(n))
+                        s = f"{n_int:,}".replace(',', '.')
+                        return f"Rp {s},00"
+                    except Exception:
+                        return "Rp 0,00"
+                self.sedekah_value_label.setText(_format_rupiah(week_total))
+            # Update tadarus last-read display
+            if hasattr(self, 'tadarus_value_label'):
+                last = res.get('tadarus_last_read') or "Q.S --"
+                self.tadarus_value_label.setText(last)
+        except Exception:
+            pass
+
     # ─────────────── PRAYER TIMES API ───────────────
     def _load_prayer_times(self):
         """Fetch prayer times from equran.id API in background thread."""
@@ -818,6 +1044,7 @@ class DashboardPage(QWidget):
         self._prayer_data = jadwal
         mapping = {
             "subuh": jadwal.get("subuh", "--:--"),
+            "dhuha": jadwal.get("dhuha", "--:--"),
             "dzuhur": jadwal.get("dzuhur", "--:--"),
             "ashar": jadwal.get("ashar", "--:--"),
             "maghrib": jadwal.get("maghrib", "--:--"),
@@ -835,7 +1062,7 @@ class DashboardPage(QWidget):
         if not self._prayer_data:
             return
         now_min = datetime.now().hour * 60 + datetime.now().minute
-        keys = ["subuh", "dzuhur", "ashar", "maghrib", "isya"]
+        keys = ["subuh", "dhuha", "dzuhur", "ashar", "maghrib", "isya"]
         times_min = []
         for k in keys:
             t = self._prayer_data.get(k, "00:00")
@@ -898,12 +1125,16 @@ class DashboardPage(QWidget):
         v = QVBoxLayout(card)
         v.setContentsMargins(24, 24, 24, 24)
         v.setSpacing(20)
-        for label, pct, color in [
-            ("Konsistensi Sholat", 90, "#2D6B4A"),
-            ("Konsistensi Tadarus", 70, "#3A8D5E"),
-            ("Konsistensi Sedekah", 80, "#4AA06C"),
-        ]:
-            v.addWidget(self._progress_row(label, pct, color))
+        rows = [
+            ("Konsistensi Sholat", "sholat", "#2D6B4A"),
+            ("Konsistensi Tadarus", "tadarus", "#3A8D5E"),
+            ("Konsistensi Sedekah", "sedekah", "#4AA06C"),
+        ]
+        for label, key, color in rows:
+            row_w, pct_label, bar = self._progress_row(label, 0, color)
+            setattr(self, f"{key}_pct_label", pct_label)
+            setattr(self, f"{key}_progress_bar", bar)
+            v.addWidget(row_w)
         v.addStretch()
         return card
 
@@ -931,7 +1162,7 @@ class DashboardPage(QWidget):
             QProgressBar::chunk {{background:{color};border-radius:6px;}}
         """)
         v.addWidget(bar)
-        return w
+        return w, pc, bar
 
     def _sedekah_card(self):
         card = ImageCardWidget("background sedekah.jpg")
@@ -948,9 +1179,9 @@ class DashboardPage(QWidget):
         title = QLabel("Sedekah Minggu Ini")
         title.setStyleSheet("color:rgba(255,255,255,210);font-size:12px;background:transparent;")
         v.addWidget(title)
-        value = QLabel("Rp 20.000,00")
-        value.setStyleSheet("color:#FFF;font-size:26px;font-weight:bold;background:transparent;")
-        v.addWidget(value)
+        self.sedekah_value_label = QLabel("Rp --")
+        self.sedekah_value_label.setStyleSheet("color:#FFF;font-size:26px;font-weight:bold;background:transparent;")
+        v.addWidget(self.sedekah_value_label)
         v.addStretch()
         return card
 
@@ -969,9 +1200,9 @@ class DashboardPage(QWidget):
         title = QLabel("Tadarus Hari Ini")
         title.setStyleSheet("color:rgba(255,255,255,210);font-size:12px;background:transparent;")
         v.addWidget(title)
-        value = QLabel("Q.S An-Nur 64:2")
-        value.setStyleSheet("color:#FFF;font-size:22px;font-weight:bold;background:transparent;")
-        v.addWidget(value)
+        self.tadarus_value_label = QLabel("Q.S --")
+        self.tadarus_value_label.setStyleSheet("color:#FFF;font-size:22px;font-weight:bold;background:transparent;")
+        v.addWidget(self.tadarus_value_label)
         link = QLabel("Lanjutkan Membaca...")
         link.setStyleSheet("color:rgba(255,255,255,180);font-size:11px;background:transparent;")
         link.setCursor(Qt.CursorShape.PointingHandCursor)

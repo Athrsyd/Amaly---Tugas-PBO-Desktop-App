@@ -73,7 +73,18 @@ class MainWindow(QMainWindow):
 
         # Tampilkan halaman login (atau langsung dashboard jika SKIP_LOGIN)
         if SKIP_LOGIN:
-            self.current_user = {"nama_lengkap": "Dev User", "location": "Jakarta"}
+            # Try to load an existing user (id=1). If not present, create a dev user.
+            user = self.db.get_user_by_id(1)
+            if not user:
+                # create a dev user with default password 'devpass'
+                ok, msg = self.db.register_user("Dev User", "Jakarta", "devpass")
+                if ok:
+                    success, user = self.db.login_user("Dev User", "devpass")
+                    if not success:
+                        user = None
+                else:
+                    user = None
+            self.current_user = user
             self.show_dashboard()
         else:
             self.show_login()

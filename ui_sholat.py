@@ -103,7 +103,7 @@ class SholatPage(QWidget):
             ("home", "Dashboard", False),
             ("mosque", "Jadwal Sholat", True),
             ("book", "Al-Qur'an", False),
-            ("chart", "Daily Tracker", False),
+            ("chart", "Sedekah Tracker", False),
         ]
         self._sidebar_btns = {}
         for ic_name, label, active in menu_items:
